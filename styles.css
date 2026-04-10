@@ -82,6 +82,27 @@ h2 { margin-bottom: 1rem; font-size: clamp(1.12rem, 4vw, 1.35rem); }
   margin-bottom: 0.9rem;
 }
 
+.install-card {
+  border-radius: 14px;
+  border: 1px solid #c5d9f1;
+  background: #edf5ff;
+  color: #1f4f87;
+  padding: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.install-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.install-actions {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
 .status-pill {
   border-radius: 14px;
   padding: 0.55rem 0.65rem;
@@ -216,4 +237,12 @@ ul { margin: 0.3rem 0; padding-left: 1rem; }
   .inline-form { grid-template-columns: 1fr auto; }
   .inline-form .btn { width: auto; min-width: 112px; }
   .summary-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .install-actions {
+    grid-template-columns: auto auto;
+    justify-content: start;
+  }
+  .install-actions .btn {
+    width: auto;
+    min-width: 120px;
+  }
 }

@@ -1,12 +1,17 @@
 {
+  "id": "/",
   "name": "Desayunos Farmacia Valme",
   "short_name": "Desayunos",
   "description": "Organiza el desayuno del equipo en segundos",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#f5f7fa",
   "theme_color": "#2b6cb0",
   "lang": "es",
+  "categories": ["productivity", "food"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icons/icon.svg",

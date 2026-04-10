@@ -7,6 +7,8 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
     />
     <meta name="theme-color" content="#2b6cb0" />
+    <meta name="description" content="Organiza y resume los pedidos de desayuno del equipo de forma rápida." />
+    <meta name="format-detection" content="telephone=no" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Desayunos Valme" />
@@ -36,6 +38,13 @@
       </header>
 
       <section id="view-home" class="view active">
+        <div id="installCard" class="install-card hidden" role="status" aria-live="polite">
+          <p id="installText"></p>
+          <div class="install-actions">
+            <button class="btn btn-soft" type="button" id="installBtn">Instalar app</button>
+            <button class="btn btn-secondary" type="button" id="dismissInstallBtn">Ahora no</button>
+          </div>
+        </div>
         <div id="homeStatusCards" class="home-status-grid"></div>
         <div class="home-actions stack">
           <button class="btn btn-large" data-view="order">Pedir mi desayuno</button>
