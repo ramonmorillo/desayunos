@@ -1,5 +1,6 @@
 (function () {
   const { createClient } = window.supabase;
+  const LAST_MEMBER_KEY = 'desayuno_last_member_id';
 
   if (!window.APP_CONFIG?.SUPABASE_URL || !window.APP_CONFIG?.SUPABASE_ANON_KEY) {
     alert('Falta config.js con SUPABASE_URL y SUPABASE_ANON_KEY.');
@@ -18,6 +19,7 @@
     foods: [],
     ordersEffective: [],
     schedule: null,
+    rememberedMember: null,
   };
 
   const views = {
@@ -33,11 +35,14 @@
   setupOrderForm();
   setupPins();
   setupSettings();
+  registerServiceWorker();
   init();
 
   async function init() {
     await loadBootData();
     renderOrderOptions();
+    renderRememberedMemberInfo();
+    renderHomeStatus();
   }
 
   function setupNavigation() {
@@ -48,7 +53,12 @@
         if (targetView === 'order') {
           await loadBootData();
           renderOrderOptions();
+          renderRememberedMemberInfo();
           clearMessage('orderMsg');
+          await applyRememberedMemberSelection();
+        }
+        if (targetView === 'home') {
+          renderHomeStatus();
         }
       });
     });
@@ -78,7 +88,9 @@
     state.foods = foodsRes.data || [];
     state.schedule = getEffectiveSchedule(state.settings);
     await loadOrdersForDate(state.schedule.orderDateISO);
+    syncRememberedMember();
     renderScheduleUI();
+    renderHomeStatus();
   }
 
   async function loadOrdersForDate(orderDateISO) {
@@ -93,14 +105,9 @@
 
   function renderOrderOptions() {
     const memberSelect = document.getElementById('memberSelect');
-    const activeMembers = state.members
-      .filter((m) => m.active !== false)
-      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' }));
-
-    console.log('fetched members for order form', activeMembers);
+    const activeMembers = getActiveMembers();
 
     fillSelect(memberSelect, activeMembers, 'Selecciona un miembro');
-    console.log('number of options inserted into memberSelect', Math.max((memberSelect?.options?.length || 0) - 1, 0));
     fillSelect(
       document.getElementById('drinkSelect'),
       state.drinks.filter((d) => d.active !== false),
@@ -116,10 +123,7 @@
   }
 
   function fillSelect(select, items, placeholder) {
-    if (!select) {
-      console.error('fillSelect: missing select element', { placeholder });
-      return;
-    }
+    if (!select) return;
 
     select.innerHTML = '';
     const defaultOption = document.createElement('option');
@@ -146,11 +150,15 @@
         yesFields.classList.toggle('hidden', e.target.value !== 'si');
       }
       if (e.target.id === 'memberSelect') {
+        rememberMemberIfValid(e.target.value);
         await loadExistingOrderForMember();
       }
     });
 
-    memberSelect.addEventListener('change', loadExistingOrderForMember);
+    memberSelect.addEventListener('change', async () => {
+      rememberMemberIfValid(memberSelect.value);
+      await loadExistingOrderForMember();
+    });
 
     orderForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -224,6 +232,7 @@
       }
 
       await loadOrdersForDate(state.schedule.orderDateISO);
+      renderHomeStatus();
       showMessage('orderMsg', 'Pedido guardado correctamente.', 'success');
       saveButton.blur();
     });
@@ -331,9 +340,6 @@
     }
 
     const settings = settingsRes.data;
-    console.log('Entered PIN:', enteredPin);
-    console.log('DB PIN:', settings.pin_code);
-
     if (enteredPin.trim() !== String(settings.pin_code)) {
       showMessage(msgId, 'PIN incorrecto.', 'error');
       return;
@@ -348,7 +354,7 @@
         ? 'Resumen del pedido para mañana'
         : 'Resumen del pedido para hoy';
 
-    const activeMembers = state.members.filter((m) => m.active !== false);
+    const activeMembers = getActiveMembers();
     const byMember = new Map(state.ordersEffective.map((o) => [o.member_id, o]));
     const responses = activeMembers.filter((m) => byMember.has(m.id));
     const desayunan = responses.filter((m) => byMember.get(m.id).desayuna);
@@ -381,30 +387,26 @@
 
     const summaryContent = document.getElementById('summaryContent');
     summaryContent.innerHTML = `
-      <div class="summary-box">
-        <strong>Fecha:</strong> ${formatDateES(state.schedule.summaryDateISO)}<br>
-        <strong>Total miembros activos:</strong> ${activeMembers.length}<br>
-        <strong>Respuestas recibidas:</strong> ${responses.length}<br>
-        <strong>Pendientes:</strong> ${activeMembers.length - responses.length}<br>
-        <strong>Desayunan:</strong> ${desayunan.length}<br>
-        <strong>No desayunan:</strong> ${noDesayunan.length}
+      <div class="summary-stats">
+        <div class="summary-card"><span>Fecha efectiva</span><strong>${formatDateES(state.schedule.summaryDateISO)}</strong></div>
+        <div class="summary-card"><span>Pendientes</span><strong>${activeMembers.length - responses.length}</strong></div>
+        <div class="summary-card"><span>Respuestas</span><strong>${responses.length}/${activeMembers.length}</strong></div>
+        <div class="summary-card"><span>Desayunan</span><strong>${desayunan.length}</strong></div>
+        <div class="summary-card"><span>No desayunan</span><strong>${noDesayunan.length}</strong></div>
       </div>
       ${
         state.schedule.mode === 'blocked'
           ? `<p class="message warning">Franja de bloqueo. Entre las 09:30 y las 13:00 no se pueden realizar cambios.</p>`
           : ''
       }
-
       <div class="summary-box">
         <strong>Conteo bebidas</strong>
         <ul>${toCountList(drinkCount)}</ul>
       </div>
-
       <div class="summary-box">
         <strong>Conteo comidas</strong>
         <ul>${toCountList(foodCount)}</ul>
       </div>
-
       <div class="summary-box">
         <strong>Detalle</strong>
         <ul>${detailItems}</ul>
@@ -428,7 +430,7 @@
   async function copySummaryText() {
     await loadBootData();
     const byMember = new Map(state.ordersEffective.map((o) => [o.member_id, o]));
-    const activeMembers = state.members.filter((m) => m.active !== false);
+    const activeMembers = getActiveMembers();
     const desayunanOrders = activeMembers
       .map((m) => byMember.get(m.id))
       .filter((o) => o && o.desayuna);
@@ -586,6 +588,96 @@
     });
   }
 
+  function rememberMemberIfValid(memberId) {
+    const normalized = String(memberId || '').trim();
+    if (!normalized) return;
+    const member = getActiveMembers().find((m) => String(m.id) === normalized);
+    if (!member) return;
+    localStorage.setItem(LAST_MEMBER_KEY, normalized);
+    state.rememberedMember = member;
+    renderRememberedMemberInfo();
+    renderHomeStatus();
+  }
+
+  function syncRememberedMember() {
+    const rememberedId = localStorage.getItem(LAST_MEMBER_KEY);
+    if (!rememberedId) {
+      state.rememberedMember = null;
+      return;
+    }
+
+    const remembered = getActiveMembers().find((m) => String(m.id) === String(rememberedId));
+    if (!remembered) {
+      localStorage.removeItem(LAST_MEMBER_KEY);
+      state.rememberedMember = null;
+      return;
+    }
+
+    state.rememberedMember = remembered;
+  }
+
+  async function applyRememberedMemberSelection() {
+    const memberSelect = document.getElementById('memberSelect');
+    if (!state.rememberedMember || !memberSelect) {
+      renderRememberedMemberInfo();
+      return;
+    }
+
+    const rememberedId = String(state.rememberedMember.id);
+    const hasOption = Array.from(memberSelect.options).some((opt) => opt.value === rememberedId);
+    if (!hasOption) {
+      localStorage.removeItem(LAST_MEMBER_KEY);
+      state.rememberedMember = null;
+      renderRememberedMemberInfo();
+      return;
+    }
+
+    memberSelect.value = rememberedId;
+    await loadExistingOrderForMember();
+    renderRememberedMemberInfo();
+  }
+
+  function renderRememberedMemberInfo() {
+    const el = document.getElementById('rememberedMemberInfo');
+    if (!state.rememberedMember) {
+      el.classList.add('hidden');
+      el.textContent = '';
+      return;
+    }
+
+    el.textContent = `Este dispositivo recuerda a: ${state.rememberedMember.name}`;
+    el.classList.remove('hidden');
+  }
+
+  function renderHomeStatus() {
+    const container = document.getElementById('homeStatusCards');
+    if (!container || !state.schedule) return;
+
+    const activeMembers = getActiveMembers();
+    const pendingCount = Math.max(activeMembers.length - state.ordersEffective.length, 0);
+    const modeLabel = state.schedule?.summaryLabelType === 'tomorrow' ? 'Pedido para mañana' : 'Pedido para hoy';
+
+    const cards = [
+      { label: 'Estado', value: modeLabel },
+      { label: 'Fecha efectiva', value: formatDateES(state.schedule.orderDateISO) },
+      { label: 'Pendientes', value: String(pendingCount) },
+    ];
+
+    if (state.rememberedMember) {
+      cards.push({ label: 'Recordado', value: state.rememberedMember.name });
+    }
+
+    container.innerHTML = cards
+      .map((card) => `<div class="status-pill"><span class="label">${card.label}</span><span class="value">${escapeHtml(card.value)}</span></div>`)
+      .join('');
+  }
+
+  function getActiveMembers() {
+    return state.members
+      .filter((m) => m.active !== false)
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' }));
+  }
+
   function handleError(error, friendlyText) {
     if (error) {
       console.error(error);
@@ -712,6 +804,13 @@
   function formatDateES(isoDate) {
     const [year, month, day] = isoDate.split('-');
     return `${day}/${month}/${year}`;
+  }
+
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    });
   }
 
   function escapeHtml(str) {

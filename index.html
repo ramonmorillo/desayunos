@@ -2,8 +2,19 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#2b6cb0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Desayunos Valme" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>☕ Desayunos Farmacia Valme</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.svg" />
     <link rel="stylesheet" href="styles.css" />
     <script src="config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -11,20 +22,31 @@
   <body>
     <main class="app">
       <header class="app-header">
-        <h1>☕ Desayunos Farmacia Valme</h1>
-        <p class="tagline">Organiza el desayuno del equipo en segundos</p>
-        <p class="subtitle" id="todayLabel"></p>
-        <p class="subtitle" id="orderWindowLabel"></p>
+        <div class="header-brand">
+          <span class="header-icon" aria-hidden="true">☕</span>
+          <div>
+            <h1>Desayunos Farmacia Valme</h1>
+            <p class="tagline">Organiza el desayuno del equipo en segundos</p>
+          </div>
+        </div>
+        <div class="header-status">
+          <p class="subtitle" id="todayLabel"></p>
+          <p class="subtitle" id="orderWindowLabel"></p>
+        </div>
       </header>
 
       <section id="view-home" class="view active">
-        <button class="btn btn-large" data-view="order">Pedir mi desayuno</button>
-        <button class="btn btn-large" data-view="summary-pin">Ver resumen del día</button>
-        <button class="btn btn-large" data-view="settings-pin">Configuración</button>
+        <div id="homeStatusCards" class="home-status-grid"></div>
+        <div class="home-actions stack">
+          <button class="btn btn-large" data-view="order">Pedir mi desayuno</button>
+          <button class="btn btn-large btn-soft" data-view="summary-pin">Ver resumen del día</button>
+          <button class="btn btn-large btn-secondary" data-view="settings-pin">Configuración</button>
+        </div>
       </section>
 
       <section id="view-order" class="view">
         <h2>Pedir mi desayuno</h2>
+        <p id="rememberedMemberInfo" class="info-line hidden"></p>
         <form id="orderForm" class="stack">
           <label>
             Miembro
@@ -84,7 +106,7 @@
         <h2 id="summaryTitle">Resumen del día</h2>
         <div id="summaryContent" class="stack"></div>
         <p id="copyMsg" class="message hidden"></p>
-        <button class="btn" type="button" id="copyOrderBtn">Copiar pedido</button>
+        <button class="btn btn-accent" type="button" id="copyOrderBtn">Copiar pedido</button>
         <button class="btn btn-secondary" type="button" data-view="home">Volver</button>
       </section>
 
