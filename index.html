@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Desayunos equipo</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <main class="app">
+      <header class="app-header">
+        <h1>Desayunos equipo</h1>
+        <p class="subtitle" id="todayLabel"></p>
+      </header>
+
+      <section id="view-home" class="view active">
+        <button class="btn btn-large" data-view="order">Pedir mi desayuno</button>
+        <button class="btn btn-large" data-view="summary-pin">Ver resumen del día</button>
+        <button class="btn btn-large" data-view="settings-pin">Configuración</button>
+      </section>
+
+      <section id="view-order" class="view">
+        <h2>Pedir mi desayuno</h2>
+        <form id="orderForm" class="stack">
+          <label>
+            Miembro
+            <select id="memberSelect" required></select>
+          </label>
+
+          <label>
+            Fecha
+            <input id="orderDate" type="text" disabled />
+          </label>
+
+          <fieldset>
+            <legend>¿Desayunas hoy?</legend>
+            <label class="inline"><input type="radio" name="desayuna" value="si" required /> Sí</label>
+            <label class="inline"><input type="radio" name="desayuna" value="no" required /> No</label>
+          </fieldset>
+
+          <div id="yesFields" class="stack hidden">
+            <label>
+              Bebida
+              <select id="drinkSelect"></select>
+            </label>
+
+            <label>
+              Comida
+              <select id="foodSelect"></select>
+            </label>
+
+            <label>
+              Observaciones (opcional)
+              <textarea id="notesInput" rows="3" maxlength="250"></textarea>
+            </label>
+          </div>
+
+          <p id="cutoffMsg" class="message warning hidden"></p>
+          <p id="orderMsg" class="message hidden"></p>
+
+          <button class="btn" type="submit" id="saveOrderBtn">Guardar</button>
+          <button class="btn btn-secondary" type="button" data-view="home">Volver</button>
+        </form>
+      </section>
+
+      <section id="view-summary-pin" class="view">
+        <h2>Resumen del día</h2>
+        <form id="summaryPinForm" class="stack compact">
+          <label>
+            PIN
+            <input type="password" id="summaryPinInput" inputmode="numeric" required />
+          </label>
+          <p id="summaryPinMsg" class="message hidden"></p>
+          <button class="btn" type="submit">Entrar</button>
+          <button class="btn btn-secondary" type="button" data-view="home">Volver</button>
+        </form>
+      </section>
+
+      <section id="view-summary" class="view">
+        <h2>Resumen del día</h2>
+        <div id="summaryContent" class="stack"></div>
+        <p id="copyMsg" class="message hidden"></p>
+        <button class="btn" type="button" id="copyOrderBtn">Copiar pedido</button>
+        <button class="btn btn-secondary" type="button" data-view="home">Volver</button>
+      </section>
+
+      <section id="view-settings-pin" class="view">
+        <h2>Configuración</h2>
+        <form id="settingsPinForm" class="stack compact">
+          <label>
+            PIN
+            <input type="password" id="settingsPinInput" inputmode="numeric" required />
+          </label>
+          <p id="settingsPinMsg" class="message hidden"></p>
+          <button class="btn" type="submit">Entrar</button>
+          <button class="btn btn-secondary" type="button" data-view="home">Volver</button>
+        </form>
+      </section>
+
+      <section id="view-settings" class="view">
+        <h2>Configuración</h2>
+
+        <details open>
+          <summary>Miembros</summary>
+          <div class="stack compact">
+            <form id="memberForm" class="inline-form">
+              <input type="text" id="newMemberName" placeholder="Nuevo miembro" required />
+              <button class="btn" type="submit">Añadir</button>
+            </form>
+            <div id="membersList"></div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Coordinadores</summary>
+          <div class="stack compact">
+            <label class="inline">
+              <input type="checkbox" id="coordinatorToggle" />
+              coordinator_authorized
+            </label>
+            <button class="btn" id="saveCoordinatorBtn" type="button">Guardar</button>
+          </div>
+        </details>
+
+        <details>
+          <summary>Bebidas</summary>
+          <div class="stack compact">
+            <form id="drinkForm" class="inline-form">
+              <input type="text" id="newDrinkName" placeholder="Nueva bebida" required />
+              <button class="btn" type="submit">Añadir</button>
+            </form>
+            <div id="drinksList"></div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Comidas</summary>
+          <div class="stack compact">
+            <form id="foodForm" class="inline-form">
+              <input type="text" id="newFoodName" placeholder="Nueva comida" required />
+              <button class="btn" type="submit">Añadir</button>
+            </form>
+            <div id="foodsList"></div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Ajustes</summary>
+          <div class="stack compact">
+            <label>
+              PIN
+              <input type="text" id="pinSettingInput" />
+            </label>
+            <label>
+              Hora límite (cutoff_time)
+              <input type="time" id="cutoffInput" />
+            </label>
+            <button class="btn" type="button" id="saveSettingsBtn">Guardar ajustes</button>
+          </div>
+        </details>
+
+        <p id="settingsMsg" class="message hidden"></p>
+        <button class="btn btn-secondary" type="button" data-view="home">Volver</button>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
