@@ -179,7 +179,7 @@
         desayuna: desayunaValue === 'si',
         drink_option_id: null,
         food_option_id: null,
-        observations: null,
+        notes: null,
       };
 
       if (desayunaValue === 'si') {
@@ -191,7 +191,7 @@
         }
         payload.drink_option_id = drinkId;
         payload.food_option_id = foodId;
-        payload.observations = document.getElementById('notesInput').value.trim() || null;
+        payload.notes = document.getElementById('notesInput').value.trim() || null;
       }
 
       const existing = state.ordersEffective.find((o) => String(o.member_id) === String(memberId));
@@ -205,6 +205,22 @@
       if (res.error) {
         showMessage('orderMsg', `Error al guardar: ${res.error.message}`, 'error');
         return;
+      }
+
+      if (desayunaValue === 'si') {
+        const habitualRes = await supabase
+          .from('members')
+          .update({
+            habitual_drink_option_id: payload.drink_option_id,
+            habitual_food_option_id: payload.food_option_id,
+            habitual_notes: payload.notes,
+          })
+          .eq('id', memberId);
+
+        if (habitualRes.error) {
+          showMessage('orderMsg', `Error al guardar habitual: ${habitualRes.error.message}`, 'error');
+          return;
+        }
       }
 
       await loadOrdersForDate(state.schedule.orderDateISO);
@@ -255,7 +271,7 @@
       yesFields.classList.remove('hidden');
       document.getElementById('drinkSelect').value = String(existing.drink_option_id || '');
       document.getElementById('foodSelect').value = String(existing.food_option_id || '');
-      document.getElementById('notesInput').value = existing.observations || '';
+      document.getElementById('notesInput').value = existing.notes || '';
     }
 
     memberSelect.value = String(memberId);
@@ -358,7 +374,7 @@
 
         const drink = state.drinks.find((d) => d.id === order.drink_option_id)?.name || 'Sin bebida';
         const food = state.foods.find((f) => f.id === order.food_option_id)?.name || 'Sin comida';
-        const notes = order.observations ? ` (${escapeHtml(order.observations)})` : '';
+        const notes = order.notes ? ` (${escapeHtml(order.notes)})` : '';
         return `<li>${escapeHtml(m.name)} — desayuna — ${escapeHtml(drink)} + ${escapeHtml(food)}${notes}</li>`;
       })
       .join('');
