@@ -92,11 +92,15 @@
   }
 
   function renderOrderOptions() {
-    fillSelect(
-      document.getElementById('memberSelect'),
-      state.members.filter((m) => m.active !== false),
-      'Selecciona un miembro'
-    );
+    const memberSelect = document.getElementById('memberSelect');
+    const activeMembers = state.members
+      .filter((m) => m.active !== false)
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' }));
+
+    console.log('fetched members for order form', activeMembers);
+
+    fillSelect(memberSelect, activeMembers, 'Selecciona un miembro');
+    console.log('number of options inserted into memberSelect', Math.max((memberSelect?.options?.length || 0) - 1, 0));
     fillSelect(
       document.getElementById('drinkSelect'),
       state.drinks.filter((d) => d.active !== false),
@@ -112,6 +116,11 @@
   }
 
   function fillSelect(select, items, placeholder) {
+    if (!select) {
+      console.error('fillSelect: missing select element', { placeholder });
+      return;
+    }
+
     select.innerHTML = '';
     const defaultOption = document.createElement('option');
     defaultOption.value = '';
@@ -152,7 +161,7 @@
         return;
       }
 
-      const memberId = Number(memberSelect.value);
+      const memberId = parseMemberId(memberSelect.value);
       if (!memberId) {
         showMessage('orderMsg', 'Selecciona un miembro.', 'error');
         return;
@@ -185,7 +194,7 @@
         payload.observations = document.getElementById('notesInput').value.trim() || null;
       }
 
-      const existing = state.ordersEffective.find((o) => o.member_id === memberId);
+      const existing = state.ordersEffective.find((o) => String(o.member_id) === String(memberId));
       let res;
       if (existing) {
         res = await supabase.from('orders').update(payload).eq('id', existing.id);
@@ -205,7 +214,7 @@
   }
 
   async function loadExistingOrderForMember() {
-    const memberId = Number(document.getElementById('memberSelect').value);
+    const memberId = parseMemberId(document.getElementById('memberSelect').value);
     const orderForm = document.getElementById('orderForm');
     const yesFields = document.getElementById('yesFields');
 
@@ -216,7 +225,7 @@
 
     if (!memberId) return;
 
-    const existing = state.ordersEffective.find((o) => o.member_id === memberId);
+    const existing = state.ordersEffective.find((o) => String(o.member_id) === String(memberId));
     if (!existing) return;
 
     const desayunaValue = existing.desayuna ? 'si' : 'no';
@@ -652,6 +661,12 @@
       if (control.id === 'orderDate') return;
       control.disabled = disabled;
     });
+  }
+
+  function parseMemberId(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    return /^\d+$/.test(raw) ? Number(raw) : raw;
   }
 
   function updateDesayunaLegend() {
