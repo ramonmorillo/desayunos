@@ -1,0 +1,184 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #1c2430;
+  --muted: #5f6977;
+  --primary: #1a73e8;
+  --primary-dark: #125bc0;
+  --border: #d7dce2;
+  --ok: #176d3d;
+  --warn: #9a6a00;
+  --danger: #8b1f1f;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  max-width: 680px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+h1, h2 {
+  margin: 0.4rem 0;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 0;
+}
+
+.view {
+  display: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.view.active {
+  display: block;
+}
+
+.stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.stack.compact {
+  gap: 0.5rem;
+}
+
+label,
+fieldset {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.95rem;
+}
+
+.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: 0.8rem;
+}
+
+input,
+select,
+textarea,
+button {
+  font-size: 1rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem;
+  background: #fff;
+}
+
+.btn {
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.btn-secondary {
+  background: #e6ebf2;
+  color: #203040;
+}
+
+.btn-large {
+  width: 100%;
+  min-height: 64px;
+  font-size: 1.05rem;
+}
+
+.message {
+  border-radius: 8px;
+  padding: 0.65rem;
+  margin: 0;
+  background: #edf2ff;
+}
+
+.message.warning {
+  background: #fff7e5;
+  color: var(--warn);
+}
+
+.message.error {
+  background: #fdeceb;
+  color: var(--danger);
+}
+
+.message.success {
+  background: #e8f8ee;
+  color: var(--ok);
+}
+
+.hidden {
+  display: none;
+}
+
+.inline-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.4rem;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+.item-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.summary-box {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem;
+}
+
+ul {
+  margin: 0.3rem 0;
+  padding-left: 1rem;
+}
