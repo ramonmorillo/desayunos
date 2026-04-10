@@ -13,6 +13,7 @@
       <header class="app-header">
         <h1>Desayunos equipo</h1>
         <p class="subtitle" id="todayLabel"></p>
+        <p class="subtitle" id="orderWindowLabel"></p>
       </header>
 
       <section id="view-home" class="view active">
@@ -35,7 +36,7 @@
           </label>
 
           <fieldset>
-            <legend>¿Desayunas hoy?</legend>
+            <legend id="desayunaLegend">¿Desayunas?</legend>
             <label class="inline"><input type="radio" name="desayuna" value="si" required /> Sí</label>
             <label class="inline"><input type="radio" name="desayuna" value="no" required /> No</label>
           </fieldset>
@@ -79,7 +80,7 @@
       </section>
 
       <section id="view-summary" class="view">
-        <h2>Resumen del día</h2>
+        <h2 id="summaryTitle">Resumen del día</h2>
         <div id="summaryContent" class="stack"></div>
         <p id="copyMsg" class="message hidden"></p>
         <button class="btn" type="button" id="copyOrderBtn">Copiar pedido</button>
@@ -154,8 +155,12 @@
               <input type="text" id="pinSettingInput" />
             </label>
             <label>
-              Hora límite (cutoff_time)
-              <input type="time" id="cutoffInput" />
+              Hora límite día actual (current_day_cutoff)
+              <input type="time" id="currentDayCutoffInput" />
+            </label>
+            <label>
+              Apertura pedido día siguiente (next_day_opening)
+              <input type="time" id="nextDayOpeningInput" />
             </label>
             <button class="btn" type="button" id="saveSettingsBtn">Guardar ajustes</button>
           </div>

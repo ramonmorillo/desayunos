@@ -54,6 +54,41 @@ Operaciones usadas:
 - Lecturas con `supabase.from('tabla').select()`
 - Escrituras con `insert()` y `update()`
 
+## 5) Lógica de planificación de pedidos (hora local de España)
+
+La app determina automáticamente la fecha efectiva del pedido usando la hora local de España (`Europe/Madrid`):
+
+- **00:00 a 09:29** → se puede crear/editar el **pedido para hoy**.
+- **09:30 a 12:59** → **franja de bloqueo**: no se pueden crear ni modificar pedidos.
+- **13:00 a 23:59** → se puede crear/editar el **pedido para mañana**.
+
+Comportamiento asociado:
+
+- En el formulario se muestra la fecha efectiva (hoy o mañana).
+- Si está en franja de bloqueo, todos los campos editables y el guardado quedan desactivados.
+- El resumen también usa la fecha efectiva:
+  - antes de 09:30: resumen de hoy
+  - de 09:30 a 13:00: resumen de hoy (con aviso de bloqueo)
+  - desde 13:00: resumen de mañana
+
+## 6) Ajustes de horarios
+
+Se reemplaza el ajuste único `cutoff_time` por dos ajustes:
+
+- `current_day_cutoff` (por defecto `09:30`)
+- `next_day_opening` (por defecto `13:00`)
+
+### Migración SQL mínima (si tu tabla `settings` solo tiene `cutoff_time`)
+
+```sql
+alter table settings add column if not exists current_day_cutoff time;
+alter table settings add column if not exists next_day_opening time;
+
+update settings
+set current_day_cutoff = coalesce(current_day_cutoff, cutoff_time, '09:30'::time),
+    next_day_opening = coalesce(next_day_opening, '13:00'::time);
+```
+
 ## Aviso importante de seguridad
 
 Esta app **no tiene autenticación real**. Solo protege vistas con PIN (modelo de confianza interna). No usar como sistema de seguridad fuerte.

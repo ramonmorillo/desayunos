@@ -16,7 +16,8 @@
     members: [],
     drinks: [],
     foods: [],
-    ordersToday: [],
+    ordersEffective: [],
+    schedule: null,
   };
 
   const views = {
@@ -27,10 +28,6 @@
     'settings-pin': document.getElementById('view-settings-pin'),
     settings: document.getElementById('view-settings'),
   };
-
-  const todayISO = getTodayISO();
-  document.getElementById('todayLabel').textContent = formatDateES(todayISO);
-  document.getElementById('orderDate').value = formatDateES(todayISO);
 
   setupNavigation();
   setupOrderForm();
@@ -79,18 +76,19 @@
     state.members = membersRes.data || [];
     state.drinks = drinksRes.data || [];
     state.foods = foodsRes.data || [];
-
-    await loadTodayOrders();
+    state.schedule = getEffectiveSchedule(state.settings);
+    await loadOrdersForDate(state.schedule.orderDateISO);
+    renderScheduleUI();
   }
 
-  async function loadTodayOrders() {
+  async function loadOrdersForDate(orderDateISO) {
     const res = await supabase
       .from('orders')
       .select('*')
-      .eq('order_date', todayISO);
+      .eq('order_date', orderDateISO);
 
     handleError(res.error, 'Error al cargar pedidos del día.');
-    state.ordersToday = res.data || [];
+    state.ordersEffective = res.data || [];
   }
 
   function renderOrderOptions() {
@@ -149,8 +147,8 @@
       e.preventDefault();
       clearMessage('orderMsg');
 
-      if (isPastCutoff()) {
-        showMessage('orderMsg', 'Ya ha pasado la hora límite. No se puede guardar.', 'error');
+      if (state.schedule?.mode === 'blocked') {
+        showMessage('orderMsg', getBlockedMessage(), 'error');
         return;
       }
 
@@ -168,7 +166,7 @@
 
       const payload = {
         member_id: memberId,
-        order_date: todayISO,
+        order_date: state.schedule.orderDateISO,
         desayuna: desayunaValue === 'si',
         drink_option_id: null,
         food_option_id: null,
@@ -187,7 +185,7 @@
         payload.observations = document.getElementById('notesInput').value.trim() || null;
       }
 
-      const existing = state.ordersToday.find((o) => o.member_id === memberId);
+      const existing = state.ordersEffective.find((o) => o.member_id === memberId);
       let res;
       if (existing) {
         res = await supabase.from('orders').update(payload).eq('id', existing.id);
@@ -200,7 +198,7 @@
         return;
       }
 
-      await loadTodayOrders();
+      await loadOrdersForDate(state.schedule.orderDateISO);
       showMessage('orderMsg', 'Pedido guardado correctamente.', 'success');
       saveButton.blur();
     });
@@ -212,12 +210,13 @@
     const yesFields = document.getElementById('yesFields');
 
     orderForm.reset();
-    document.getElementById('orderDate').value = formatDateES(todayISO);
+    document.getElementById('orderDate').value = formatDateES(state.schedule.orderDateISO);
     yesFields.classList.add('hidden');
+    updateDesayunaLegend();
 
     if (!memberId) return;
 
-    const existing = state.ordersToday.find((o) => o.member_id === memberId);
+    const existing = state.ordersEffective.find((o) => o.member_id === memberId);
     if (!existing) return;
 
     const desayunaValue = existing.desayuna ? 'si' : 'no';
@@ -234,26 +233,16 @@
     document.getElementById('memberSelect').value = String(memberId);
   }
 
-  function isPastCutoff() {
-    const cutoff = state.settings?.cutoff_time;
-    if (!cutoff) return false;
-    const now = new Date();
-    const [h, m] = cutoff.split(':').map(Number);
-    const cutoffDate = new Date();
-    cutoffDate.setHours(h, m || 0, 0, 0);
-    return now > cutoffDate;
-  }
-
   function applyCutoffState() {
-    const disabled = isPastCutoff();
+    const disabled = state.schedule?.mode === 'blocked';
     const saveBtn = document.getElementById('saveOrderBtn');
     const cutoffMsg = document.getElementById('cutoffMsg');
 
     saveBtn.disabled = disabled;
     cutoffMsg.classList.toggle('hidden', !disabled);
-    cutoffMsg.textContent = disabled
-      ? `Hora límite superada (${state.settings?.cutoff_time || '--:--'}).`
-      : '';
+    cutoffMsg.textContent = disabled ? getBlockedMessage() : '';
+    setOrderFormDisabled(disabled);
+    updateDesayunaLegend();
   }
 
   function setupPins() {
@@ -296,9 +285,13 @@
 
   async function renderSummary() {
     await loadBootData();
+    document.getElementById('summaryTitle').textContent =
+      state.schedule.summaryLabelType === 'tomorrow'
+        ? 'Resumen del pedido para mañana'
+        : 'Resumen del pedido para hoy';
 
     const activeMembers = state.members.filter((m) => m.active !== false);
-    const byMember = new Map(state.ordersToday.map((o) => [o.member_id, o]));
+    const byMember = new Map(state.ordersEffective.map((o) => [o.member_id, o]));
     const responses = activeMembers.filter((m) => byMember.has(m.id));
     const desayunan = responses.filter((m) => byMember.get(m.id).desayuna);
     const noDesayunan = responses.filter((m) => !byMember.get(m.id).desayuna);
@@ -331,13 +324,18 @@
     const summaryContent = document.getElementById('summaryContent');
     summaryContent.innerHTML = `
       <div class="summary-box">
-        <strong>Fecha:</strong> ${formatDateES(todayISO)}<br>
+        <strong>Fecha:</strong> ${formatDateES(state.schedule.summaryDateISO)}<br>
         <strong>Total miembros activos:</strong> ${activeMembers.length}<br>
         <strong>Respuestas recibidas:</strong> ${responses.length}<br>
         <strong>Pendientes:</strong> ${activeMembers.length - responses.length}<br>
         <strong>Desayunan:</strong> ${desayunan.length}<br>
         <strong>No desayunan:</strong> ${noDesayunan.length}
       </div>
+      ${
+        state.schedule.mode === 'blocked'
+          ? `<p class="message warning">Franja de bloqueo. Entre las 09:30 y las 13:00 no se pueden realizar cambios.</p>`
+          : ''
+      }
 
       <div class="summary-box">
         <strong>Conteo bebidas</strong>
@@ -371,7 +369,7 @@
 
   async function copySummaryText() {
     await loadBootData();
-    const byMember = new Map(state.ordersToday.map((o) => [o.member_id, o]));
+    const byMember = new Map(state.ordersEffective.map((o) => [o.member_id, o]));
     const activeMembers = state.members.filter((m) => m.active !== false);
     const desayunanOrders = activeMembers
       .map((m) => byMember.get(m.id))
@@ -389,7 +387,7 @@
     );
 
     const lines = [
-      `Pedido desayuno equipo — ${formatDateES(todayISO)}`,
+      `Pedido desayuno equipo — ${formatDateES(state.schedule.summaryDateISO)}`,
       'Bebidas:',
       ...Object.entries(drinkCount).map(([name, count]) => `- ${count} ${name}`),
       'Comidas:',
@@ -440,10 +438,12 @@
 
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
       const pin = document.getElementById('pinSettingInput').value.trim();
-      const cutoff = document.getElementById('cutoffInput').value;
+      const currentDayCutoff = document.getElementById('currentDayCutoffInput').value;
+      const nextDayOpening = document.getElementById('nextDayOpeningInput').value;
       const payload = {
         pin: pin || state.settings.pin,
-        cutoff_time: cutoff || state.settings.cutoff_time,
+        current_day_cutoff: currentDayCutoff || state.settings.current_day_cutoff || '09:30',
+        next_day_opening: nextDayOpening || state.settings.next_day_opening || '13:00',
       };
       const res = await supabase.from('settings').update(payload).eq('id', state.settings.id);
       if (res.error) {
@@ -478,7 +478,8 @@
 
     document.getElementById('coordinatorToggle').checked = !!state.settings?.coordinator_authorized;
     document.getElementById('pinSettingInput').value = state.settings?.pin || '';
-    document.getElementById('cutoffInput').value = state.settings?.cutoff_time || '';
+    document.getElementById('currentDayCutoffInput').value = state.settings?.current_day_cutoff || '09:30';
+    document.getElementById('nextDayOpeningInput').value = state.settings?.next_day_opening || '13:00';
   }
 
   function renderEditableList(containerId, items, table) {
@@ -547,12 +548,101 @@
     el.textContent = '';
   }
 
-  function getTodayISO() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  function getSpainNow() {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Madrid',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(new Date());
+    const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+    const isoDate = `${value.year}-${value.month}-${value.day}`;
+    const hours = Number(value.hour);
+    const minutes = Number(value.minute);
+    return {
+      isoDate,
+      time: `${value.hour}:${value.minute}`,
+      minutesOfDay: (hours * 60) + minutes,
+    };
+  }
+
+  function getEffectiveSchedule(settings) {
+    const nowSpain = getSpainNow();
+    const todayISO = nowSpain.isoDate;
+    const tomorrowISO = addDaysToISO(todayISO, 1);
+    const currentDayCutoff = settings?.current_day_cutoff || '09:30';
+    const nextDayOpening = settings?.next_day_opening || '13:00';
+    const cutoffMinutes = timeToMinutes(currentDayCutoff);
+    const openingMinutes = timeToMinutes(nextDayOpening);
+
+    if (nowSpain.minutesOfDay < cutoffMinutes) {
+      return {
+        mode: 'today',
+        orderDateISO: todayISO,
+        summaryDateISO: todayISO,
+        summaryLabelType: 'today',
+      };
+    }
+
+    if (nowSpain.minutesOfDay < openingMinutes) {
+      return {
+        mode: 'blocked',
+        orderDateISO: todayISO,
+        summaryDateISO: todayISO,
+        summaryLabelType: 'today',
+      };
+    }
+
+    return {
+      mode: 'tomorrow',
+      orderDateISO: tomorrowISO,
+      summaryDateISO: tomorrowISO,
+      summaryLabelType: 'tomorrow',
+    };
+  }
+
+  function addDaysToISO(isoDate, days) {
+    const [year, month, day] = isoDate.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    date.setUTCDate(date.getUTCDate() + days);
+    const outYear = date.getUTCFullYear();
+    const outMonth = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const outDay = String(date.getUTCDate()).padStart(2, '0');
+    return `${outYear}-${outMonth}-${outDay}`;
+  }
+
+  function timeToMinutes(timeValue) {
+    const [h, m] = String(timeValue || '00:00').split(':').map(Number);
+    return (h * 60) + (m || 0);
+  }
+
+  function renderScheduleUI() {
+    const titleLabel = state.schedule?.mode === 'tomorrow' ? 'Pedido para mañana' : 'Pedido para hoy';
+    document.getElementById('todayLabel').textContent = titleLabel;
+    document.getElementById('orderWindowLabel').textContent = `Fecha efectiva: ${formatDateES(state.schedule.orderDateISO)}`;
+    document.getElementById('orderDate').value = formatDateES(state.schedule.orderDateISO);
+    applyCutoffState();
+  }
+
+  function getBlockedMessage() {
+    return 'Entre las 09:30 y las 13:00 no se pueden modificar pedidos. A partir de las 13:00 se habilita el pedido del día siguiente.';
+  }
+
+  function setOrderFormDisabled(disabled) {
+    const controls = document.querySelectorAll('#orderForm input, #orderForm select, #orderForm textarea');
+    controls.forEach((control) => {
+      if (control.id === 'orderDate') return;
+      control.disabled = disabled;
+    });
+  }
+
+  function updateDesayunaLegend() {
+    const text = state.schedule?.mode === 'tomorrow' ? '¿Desayunas mañana?' : '¿Desayunas hoy?';
+    document.getElementById('desayunaLegend').textContent = text;
   }
 
   function formatDateES(isoDate) {
