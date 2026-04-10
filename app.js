@@ -214,11 +214,14 @@
   }
 
   async function loadExistingOrderForMember() {
-    const memberId = parseMemberId(document.getElementById('memberSelect').value);
+    const memberSelect = document.getElementById('memberSelect');
+    const selectedMemberValue = memberSelect.value;
+    const memberId = parseMemberId(selectedMemberValue);
     const orderForm = document.getElementById('orderForm');
     const yesFields = document.getElementById('yesFields');
 
     orderForm.reset();
+    memberSelect.value = selectedMemberValue;
     document.getElementById('orderDate').value = formatDateES(state.schedule.orderDateISO);
     yesFields.classList.add('hidden');
     updateDesayunaLegend();
@@ -226,7 +229,23 @@
     if (!memberId) return;
 
     const existing = state.ordersEffective.find((o) => String(o.member_id) === String(memberId));
-    if (!existing) return;
+    if (!existing) {
+      const member = state.members.find((m) => String(m.id) === String(memberId));
+      const habitualDrinkId = member?.habitual_drink_option_id;
+      const habitualFoodId = member?.habitual_food_option_id;
+      const habitualNotes = member?.habitual_notes || '';
+
+      if (habitualDrinkId || habitualFoodId || habitualNotes) {
+        const radio = orderForm.querySelector('input[name="desayuna"][value="si"]');
+        if (radio) radio.checked = true;
+        yesFields.classList.remove('hidden');
+        document.getElementById('drinkSelect').value = String(habitualDrinkId || '');
+        document.getElementById('foodSelect').value = String(habitualFoodId || '');
+        document.getElementById('notesInput').value = habitualNotes;
+      }
+
+      return;
+    }
 
     const desayunaValue = existing.desayuna ? 'si' : 'no';
     const radio = orderForm.querySelector(`input[name="desayuna"][value="${desayunaValue}"]`);
@@ -239,7 +258,7 @@
       document.getElementById('notesInput').value = existing.observations || '';
     }
 
-    document.getElementById('memberSelect').value = String(memberId);
+    memberSelect.value = String(memberId);
   }
 
   function applyCutoffState() {
