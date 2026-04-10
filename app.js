@@ -273,10 +273,24 @@
     document.getElementById('copyOrderBtn').addEventListener('click', copySummaryText);
   }
 
-  async function verifyPinAndEnter(inputPin, msgId, onSuccess) {
+  async function verifyPinAndEnter(enteredPin, msgId, onSuccess) {
     clearMessage(msgId);
-    await loadBootData();
-    if (String(inputPin).trim() !== String(state.settings?.pin || '')) {
+    const settingsRes = await supabase
+      .from('settings')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (settingsRes.error || !settingsRes.data) {
+      showMessage(msgId, 'Error cargando configuración', 'error');
+      return;
+    }
+
+    const settings = settingsRes.data;
+    console.log('Entered PIN:', enteredPin);
+    console.log('DB PIN:', settings.pin_code);
+
+    if (enteredPin.trim() !== String(settings.pin_code)) {
       showMessage(msgId, 'PIN incorrecto.', 'error');
       return;
     }
