@@ -20,6 +20,8 @@
     ordersEffective: [],
     schedule: null,
     rememberedMember: null,
+    deferredInstallPrompt: null,
+    installHintDismissed: false,
   };
 
   const views = {
@@ -35,6 +37,7 @@
   setupOrderForm();
   setupPins();
   setupSettings();
+  setupInstallPrompt();
   registerServiceWorker();
   init();
 
@@ -670,6 +673,54 @@
     container.innerHTML = cards
       .map((card) => `<div class="status-pill"><span class="label">${card.label}</span><span class="value">${escapeHtml(card.value)}</span></div>`)
       .join('');
+  }
+
+  function setupInstallPrompt() {
+    const installCard = document.getElementById('installCard');
+    const installText = document.getElementById('installText');
+    const installBtn = document.getElementById('installBtn');
+    const dismissBtn = document.getElementById('dismissInstallBtn');
+    if (!installCard || !installText || !installBtn || !dismissBtn) return;
+
+    dismissBtn.addEventListener('click', () => {
+      state.installHintDismissed = true;
+      installCard.classList.add('hidden');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (!state.deferredInstallPrompt) return;
+      state.deferredInstallPrompt.prompt();
+      try {
+        await state.deferredInstallPrompt.userChoice;
+      } finally {
+        state.deferredInstallPrompt = null;
+        installCard.classList.add('hidden');
+      }
+    });
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      state.deferredInstallPrompt = event;
+      if (state.installHintDismissed) return;
+      installText.textContent = 'Instala la app para abrirla como acceso directo y usarla más rápido.';
+      installBtn.classList.remove('hidden');
+      installCard.classList.remove('hidden');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      state.deferredInstallPrompt = null;
+      installText.textContent = 'App instalada correctamente en tu dispositivo.';
+      installBtn.classList.add('hidden');
+      installCard.classList.remove('hidden');
+    });
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
+    if (!isStandalone && isIos && !state.installHintDismissed) {
+      installText.textContent = 'En iPhone/iPad, usa Compartir → “Añadir a pantalla de inicio”.';
+      installBtn.classList.add('hidden');
+      installCard.classList.remove('hidden');
+    }
   }
 
   function getActiveMembers() {
